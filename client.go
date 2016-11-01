@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -73,15 +74,15 @@ func (cli *Client) urlFor(path string) string {
 	return cli.config.Endpoint + path
 }
 
-func (cli *Client) simpleReq(method, path string, v interface{}) error {
-	if req, err := http.NewRequest(method, cli.urlFor(path), nil); err == nil {
-		return cli.request(req, v)
-	} else {
+func (cli *Client) request(method, path string, body io.Reader, v interface{}) error {
+	req, err := http.NewRequest(method, cli.urlFor(path), body)
+	if err != nil {
 		return err
 	}
-}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	}
 
-func (cli *Client) request(req *http.Request, v interface{}) error {
 	resp, err := cli.cli.Do(req)
 	if err != nil {
 		return err
