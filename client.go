@@ -1,6 +1,7 @@
 package xbus
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -65,6 +66,10 @@ type Error struct {
 	Message string `json:"message"`
 }
 
+func (err *Error) Error() string {
+	return fmt.Sprintf("[%s] %s", err.Code, err.Message)
+}
+
 type Response struct {
 	Ok    bool   `json:"ok"`
 	Error *Error `json:"error,omitempty"`
@@ -74,11 +79,13 @@ func (cli *Client) urlFor(path string) string {
 	return cli.config.Endpoint + path
 }
 
-func (cli *Client) request(method, path string, body io.Reader, v interface{}) error {
+func (cli *Client) request(ctx context.Context, method, path string, body io.Reader, v interface{}) error {
 	req, err := http.NewRequest(method, cli.urlFor(path), body)
 	if err != nil {
 		return err
 	}
+	req = req.WithContext(ctx)
+
 	if body != nil {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	}

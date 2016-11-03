@@ -1,6 +1,7 @@
 package xbus
 
 import (
+	"context"
 	"net/url"
 	"strconv"
 	"strings"
@@ -20,10 +21,13 @@ type ConfigGetResp struct {
 	} `json:"result,omitempty"`
 }
 
-func (cli *Client) GetConfig(key string) (*ConfigItem, error) {
+func (cli *Client) GetConfig(ctx context.Context, key string) (*ConfigItem, error) {
 	var rep ConfigGetResp
-	if err := cli.request("GET", "/api/configs/"+key, nil, &rep); err != nil {
+	if err := cli.request(ctx, "GET", "/api/configs/"+key, nil, &rep); err != nil {
 		return nil, err
+	}
+	if !rep.Ok {
+		return nil, rep.Error
 	}
 	return rep.Result.Config, nil
 }
@@ -35,7 +39,7 @@ type ConfigPutResp struct {
 	} `json:"result,omitempty"`
 }
 
-func (cli *Client) PutConfig(key, value string, revision int64) error {
+func (cli *Client) PutConfig(ctx context.Context, key, value string, revision int64) error {
 	vals := make(url.Values)
 	vals.Set("value", value)
 	if revision != 0 {
@@ -43,13 +47,13 @@ func (cli *Client) PutConfig(key, value string, revision int64) error {
 	}
 
 	var rep ConfigPutResp
-	if err := cli.request("PUT", "/api/configs/"+key, strings.NewReader(vals.Encode()), &rep); err != nil {
+	if err := cli.request(ctx, "PUT", "/api/configs/"+key, strings.NewReader(vals.Encode()), &rep); err != nil {
 		return err
 	}
-	return nil
+	return rep.Error
 }
 
-func (cli *Client) WatchConfig(key string, revision int64, timeout int64) (*ConfigItem, error) {
+func (cli *Client) WatchConfig(ctx context.Context, key string, revision int64, timeout int64) (*ConfigItem, error) {
 	vals := make(url.Values)
 	vals.Set("watch", "true")
 	if revision > 0 {
@@ -60,9 +64,11 @@ func (cli *Client) WatchConfig(key string, revision int64, timeout int64) (*Conf
 	}
 
 	var rep ConfigGetResp
-	if err := cli.request("GET", "/api/configs/"+key+"?"+vals.Encode(), nil, &rep); err == nil {
-		return rep.Result.Config, nil
-	} else {
+	if err := cli.request(ctx, "GET", "/api/configs/"+key+"?"+vals.Encode(), nil, &rep); err != nil {
 		return nil, err
 	}
+	if !rep.Ok {
+		return nil, rep.Error
+	}
+	return rep.Result.Config, nil
 }
